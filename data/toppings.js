@@ -1,6 +1,7 @@
 'use strict';
 
 const Topping = require('../models/topping'),
+  DynamoStore = require('./dynamoStore'),
   _ = require('lodash');
 
 const toppings = {};
@@ -22,15 +23,23 @@ function initToppings (callback) {
 }
 
 function getAllToppings (callback) {
-  let tops = _.values(toppings);
-  callback(null, _.sortBy(tops, ['order']));
+  DynamoStore.getAllItems('toppings', (err, data) => {
+    let toppings = dynamoItemsToToppings(data.Items);
+    callback(err, _.sortBy(toppings, ['order']));
+  });
 }
 
 function createTopping (name, preview_image, image, order) {
   let id = name.replace(/ /g, '_').toLowerCase(),
     topping = new Topping(id, name, preview_image, image, order);
 
-  toppings[id] = topping;
+  DynamoStore.putItem('toppings', topping, (err, data) => {});
+}
+
+function dynamoItemsToToppings (items) {
+  return items.map((item) => {
+    return new Topping(item.id.S, item.name.S, item.preview_image.S, item.image.S, +item.order.N);
+  });
 }
 
 module.exports.getAllToppings = getAllToppings;
